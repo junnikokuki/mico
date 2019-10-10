@@ -54,7 +54,7 @@ while true;do
       echo "== 试图停止"
       # 若干循环,直到resume成功一次直接跳出
       seq 1 200 | while read line;do
-        code=`ubus call mediaplayer player_play_operation {\"action\":\"resume\"}|awk -F 'code":' '{print $2}'`
+        code=`ubus call mediaplayer player_play_operation {\"action\":\"resume\"} | jsonfilter -e "@.code"`
         if [[ "$code" -eq "0" ]];then
           echo "== 停止成功"
           break
@@ -63,7 +63,7 @@ while true;do
       done
  
       # 记录播放状态并暂停,方便在HA服务器处理逻辑的时候不会插播音乐,0为未播放,1为播放中,2为暂停
-      play_status=`ubus -t 1 call mediaplayer player_get_play_status | awk -F 'status' '{print $2}' | cut -c 5`
+      play_status=`ubus -t 1 call mediaplayer player_get_play_status | jsonfilter -e "@.info" | jsonfilter -e "@.status"`
       # echo $play_status
       ubus call mediaplayer player_play_operation {\"action\":\"pause\"} > /dev/null 2>&1
  
@@ -79,8 +79,8 @@ while true;do
         ubus call mibrain text_to_speech "{\"text\":\"$tts\",\"save\":0}" > /dev/null 2>&1
         # 最长20秒TTS播报时间,20秒内如果播报完成跳出
         seq 1 20 | while read line;do
-          media_type=`ubus -t 1 call mediaplayer player_get_play_status|awk -F 'media_type' '{print $2}'|cut -c 5`
-          if [ "$media_type" -ne "1" ];then
+          media_type=`ubus -t 1 call mediaplayer player_get_play_status | jsonfilter -e "@.info" | jsonfilter -e "@.media_type"`
+          if [[ -z "$media_type" ]] || [ "$media_type" -ne "1" ];then
             echo "== 播报TTS结束"
             break
           fi
